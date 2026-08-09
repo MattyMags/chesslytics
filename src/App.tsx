@@ -2,7 +2,12 @@ import { useEffect, useMemo, useState } from 'react'
 import { HeadToHeadDashboard } from './components/HeadToHeadDashboard'
 import { PlayerDashboard } from './components/PlayerDashboard'
 import { getPlayers } from './config/players'
-import { getCachedUserGames, syncUserGames, type SyncResult } from './lib/lichess'
+import { formatDate } from './lib/format'
+import {
+  loadGamesFromApi,
+  syncPlayersFromApi,
+  type PlayerSyncResponse,
+} from './lib/lichess'
 import {
   computeHeadToHeadStats,
   computePlayerStats,
@@ -16,10 +21,24 @@ type Tab = 'player1' | 'player2' | 'h2h'
 interface PlayerData {
   label: string
   username: string
-  games: SyncResult['games']
+  games: PlayerSyncResponse['games']
   stats: PlayerStats | null
-  sync?: SyncResult
+  sync?: PlayerSyncResponse['sync']
   error?: string
+}
+
+function toPlayerData(entry: PlayerSyncResponse): PlayerData {
+  return {
+    label: entry.label,
+    username: entry.username,
+    games: entry.games,
+    stats:
+      entry.games.length > 0 && entry.username
+        ? computePlayerStats(entry.games, entry.username)
+        : null,
+    sync: entry.sync,
+    error: entry.error,
+  }
 }
 
 function App() {
@@ -54,40 +73,7 @@ function App() {
     }
   }
 
-  async function loadCachedPlayerData(): Promise<PlayerData[]> {
-    return Promise.all(
-      players.map(async (player) => {
-        if (!player.username) {
-          return {
-            label: player.label,
-            username: player.username,
-            games: [],
-            stats: null,
-            error: 'Missing username in .env',
-          }
-        }
-
-        const { games } = await getCachedUserGames(player.username)
-        if (games.length === 0) {
-          return {
-            label: player.label,
-            username: player.username,
-            games: [],
-            stats: null,
-          }
-        }
-
-        return {
-          label: player.label,
-          username: player.username,
-          games,
-          stats: computePlayerStats(games, player.username),
-        }
-      }),
-    )
-  }
-
-  async function syncAll(force = false) {
+  async function syncAll(force = false, skipIfFresh = !force) {
     setSyncing(true)
 
     if (force) {
@@ -95,54 +81,40 @@ function App() {
       setHeadToHead(null)
       setInitialLoading(true)
     } else if (!hasData) {
-      const cached = await loadCachedPlayerData()
-      if (cached.some((p) => p.stats)) {
-        applyResults(cached)
-        setInitialLoading(false)
+      try {
+        const cached = await loadGamesFromApi()
+        if (cached.players.some((p) => p.games.length > 0)) {
+          applyResults(cached.players.map(toPlayerData))
+          setInitialLoading(false)
+        }
+      } catch {
+        // DB may be empty on first run — sync will populate it
       }
     }
 
-    const results = await Promise.all(
-      players.map(async (player) => {
-        if (!player.username || !player.token) {
-          return {
+    try {
+      const response = await syncPlayersFromApi({ force, skipIfFresh })
+      applyResults(response.players.map(toPlayerData))
+    } catch (err) {
+      if (!hasData) {
+        applyResults(
+          players.map((player) => ({
             label: player.label,
             username: player.username,
             games: [],
             stats: null,
-            error: 'Missing username or token in .env',
-          }
-        }
+            error: err instanceof Error ? err.message : 'Sync failed',
+          })),
+        )
+      }
+    }
 
-        try {
-          const sync = await syncUserGames(player.username, player.token, { force })
-          const stats = computePlayerStats(sync.games, player.username)
-          return {
-            label: player.label,
-            username: player.username,
-            games: sync.games,
-            stats,
-            sync,
-          }
-        } catch (err) {
-          return {
-            label: player.label,
-            username: player.username,
-            games: [],
-            stats: null,
-            error: err instanceof Error ? err.message : 'Failed to fetch',
-          }
-        }
-      }),
-    )
-
-    applyResults(results)
     setInitialLoading(false)
     setSyncing(false)
   }
 
   useEffect(() => {
-    syncAll(false)
+    syncAll(false, true)
   }, [])
 
   const tabs: { id: Tab; label: string; disabled?: boolean }[] = [
@@ -180,6 +152,14 @@ function App() {
             <button
               type="button"
               className="fetch-btn fetch-btn--secondary"
+              onClick={() => syncAll(false, false)}
+              disabled={syncing}
+            >
+              Check for new games
+            </button>
+            <button
+              type="button"
+              className="fetch-btn fetch-btn--secondary"
               onClick={() => syncAll(true)}
               disabled={syncing}
             >
@@ -193,12 +173,18 @@ function App() {
                 .map((p) => (
                   <p key={p.username}>
                     <strong>{p.label}:</strong>{' '}
-                    {p.sync!.games.length.toLocaleString()} games cached
-                    {p.sync!.fullRefresh
-                      ? ' (full refresh)'
-                      : p.sync!.newCount > 0
-                        ? ` (+${p.sync!.newCount} new)`
-                        : ' (up to date)'}
+                    {p.sync!.games.length.toLocaleString()} games in database
+                    {' · '}
+                    last synced {formatDate(p.sync!.meta.lastSyncedAt)}
+                    {p.sync!.skipped
+                      ? ' (no Lichess call — recently synced)'
+                      : p.sync!.fullRefresh
+                        ? ' (full re-download)'
+                        : p.sync!.cachedCount === 0
+                          ? ' (first download)'
+                          : p.sync!.newCount > 0
+                            ? ` (+${p.sync!.newCount} new from Lichess)`
+                            : ' (checked — no new games)'}
                   </p>
                 ))}
             </div>
@@ -259,7 +245,10 @@ function App() {
         {initialLoading && !hasData && (
           <section className="empty-state card">
             <h2>Loading your games…</h2>
-            <p>First sync pulls your full Lichess history. This may take a minute.</p>
+            <p>
+              First sync downloads your Lichess history into Supabase. This may
+              take a minute.
+            </p>
           </section>
         )}
 
@@ -267,15 +256,15 @@ function App() {
           <section className="empty-state card">
             <h2>No games found</h2>
             <p>
-              Check your <code>.env</code> usernames and tokens, then reload the
-              page or use Full refresh.
+              Set up Supabase (see README), add server env vars, then reload or
+              use Full refresh.
             </p>
           </section>
         )}
       </main>
 
       <footer className="footer">
-        <span>Powered by chess.js &amp; Lichess API</span>
+        <span>Powered by chess.js, Lichess API &amp; Supabase</span>
       </footer>
     </div>
   )
