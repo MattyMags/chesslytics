@@ -78,11 +78,20 @@ export async function syncUntilComplete(options: {
   skipIfFresh?: boolean
   onProgress?: (response: ApiPlayersResponse) => void
 } = {}): Promise<ApiPlayersResponse> {
+  const MAX_BATCHES = 200
   let force = options.force ?? false
   let skipIfFresh = options.skipIfFresh ?? !force
   let response: ApiPlayersResponse | null = null
+  let batches = 0
 
   do {
+    batches++
+    if (batches > MAX_BATCHES) {
+      throw new Error(
+        `Sync stopped after ${MAX_BATCHES} batches — try Full refresh again or check sync logs.`,
+      )
+    }
+
     response = await syncPlayersFromApi({ force, skipIfFresh })
     options.onProgress?.(response)
     force = false

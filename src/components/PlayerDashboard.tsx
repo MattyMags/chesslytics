@@ -9,6 +9,7 @@ import {
   streakLabel,
 } from '../lib/format'
 import type { PlayerStats } from '../lib/stats/types'
+import { BlundersSection } from './BlundersSection'
 import { DataTable } from './DataTable'
 import { RecordBar } from './RecordBar'
 import { Section } from './Section'
@@ -57,6 +58,8 @@ export function PlayerDashboard({ label, username, stats }: PlayerDashboardProps
           />
         </div>
       </div>
+
+      <BlundersSection stats={stats.blunders} />
 
       <Section title="Overview" description="Core performance at a glance">
         <div className="metric-grid">
@@ -277,8 +280,8 @@ export function PlayerDashboard({ label, username, stats }: PlayerDashboardProps
 
       {stats.accuracy.gamesAnalyzed > 0 && (
         <Section
-          title="Accuracy"
-          description={`From ${formatNumber(stats.accuracy.gamesAnalyzed)} analyzed games on Lichess`}
+          title="Lichess accuracy"
+          description={`Aggregate analysis from ${formatNumber(stats.accuracy.gamesAnalyzed)} games`}
         >
           <div className="metric-grid">
             <StatCard

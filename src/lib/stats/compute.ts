@@ -28,6 +28,7 @@ import {
   type StreakInfo,
   type VariantStat,
 } from './types'
+import { computeBlunderStats } from './blunders'
 
 function getMoveCount(pgn: string | undefined): number | undefined {
   if (!pgn) return undefined
@@ -457,6 +458,7 @@ export function computePlayerStats(
       avgMistakes: analyzedGames > 0 ? mistakeTotal / analyzedGames : 0,
       avgBlunders: analyzedGames > 0 ? blunderTotal / analyzedGames : 0,
     },
+    blunders: computeBlunderStats(playerGames, username),
     pgn: {
       parsed,
       failed,
