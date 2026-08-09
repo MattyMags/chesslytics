@@ -1,0 +1,1 @@
+{"root":["./api/games.ts","./api/sync.ts","./api/lib/handlers.ts","./api/lib/lichess.ts","./api/lib/players.ts","./api/lib/supabase.ts","./api/lib/sync.ts","./api/lib/types.ts"],"version":"5.8.3"}

@@ -30,3 +30,4 @@ dist-ssr
 
 # Local game cache (optional dev file exports)
 .cache/
+.vercel
