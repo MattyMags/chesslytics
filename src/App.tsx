@@ -58,10 +58,10 @@ function App() {
         <section className="card placeholder">
           <h2>Coming soon</h2>
           <ul>
-            <li>Lichess game history &amp; stats</li>
             <li>Head-to-head records</li>
             <li>Opening repertoire analysis</li>
             <li>Rating trends over time</li>
+            <li>Batch fetch for both players</li>
           </ul>
         </section>
       </main>

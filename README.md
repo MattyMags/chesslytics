@@ -11,12 +11,21 @@ A chess analytics dashboard built with React, chess.js, and the Lichess API.
 
 ## Local development
 
+1. Copy `.env.example` to `.env` and fill in both Lichess usernames and API tokens.
+2. Install and run:
+
 ```bash
 npm install
 npm run dev
 ```
 
 Open [http://localhost:5173](http://localhost:5173).
+
+### Lichess API keys
+
+Create personal access tokens at [lichess.org/account/oauth/token](https://lichess.org/account/oauth/token) with at least **Read** scope. Each player can use their own token for higher rate limits when fetching their own games.
+
+Add the same env vars in Vercel (**Settings → Environment Variables**) before deploying.
 
 ## Deploy to Vercel
 
