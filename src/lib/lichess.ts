@@ -1,44 +1,13 @@
-import type { LichessGame } from '../types/lichess'
-
-export interface FetchGamesOptions {
-  max?: number
-  since?: number
-  until?: number
-}
-
-function parseNdjson(text: string): LichessGame[] {
-  const trimmed = text.trim()
-  if (!trimmed) return []
-
-  return trimmed
-    .split('\n')
-    .filter(Boolean)
-    .map((line, index) => {
-      try {
-        return JSON.parse(line) as LichessGame
-      } catch {
-        throw new Error(`Failed to parse game JSON on line ${index + 1}`)
-      }
-    })
-}
-
-export async function fetchUserGames(
+export async function fetchUserGameCount(
   username: string,
   token: string,
-  options: FetchGamesOptions = {},
-): Promise<LichessGame[]> {
+): Promise<number> {
   const params = new URLSearchParams({
-    pgnInJson: 'true',
-    moves: 'true',
-    tags: 'true',
-    opening: 'true',
-    clocks: 'true',
+    moves: 'false',
+    tags: 'false',
+    clocks: 'false',
     evals: 'false',
   })
-
-  if (options.max !== undefined) params.set('max', String(options.max))
-  if (options.since !== undefined) params.set('since', String(options.since))
-  if (options.until !== undefined) params.set('until', String(options.until))
 
   const url = `https://lichess.org/api/games/user/${encodeURIComponent(username)}?${params}`
 
@@ -59,5 +28,8 @@ export async function fetchUserGames(
     )
   }
 
-  return parseNdjson(await response.text())
+  const text = (await response.text()).trim()
+  if (!text) return 0
+
+  return text.split('\n').filter(Boolean).length
 }
