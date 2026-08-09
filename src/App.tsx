@@ -1,10 +1,51 @@
-import { useState } from 'react'
-import { Chess } from 'chess.js'
+import { useMemo, useState } from 'react'
+import { getPlayers } from './config/players'
+import { fetchUserGameCount } from './lib/lichess'
 import './App.css'
 
+interface PlayerCount {
+  label: string
+  username: string
+  count: number | null
+  error?: string
+}
+
 function App() {
-  const [lichessUsername, setLichessUsername] = useState('')
-  const chess = new Chess()
+  const players = useMemo(() => getPlayers(), [])
+  const [loading, setLoading] = useState(false)
+  const [counts, setCounts] = useState<PlayerCount[]>([])
+
+  async function handleFetch() {
+    setLoading(true)
+
+    const results = await Promise.all(
+      players.map(async (player) => {
+        if (!player.username || !player.token) {
+          return {
+            label: player.label,
+            username: player.username,
+            count: null,
+            error: 'Missing username or token in .env',
+          }
+        }
+
+        try {
+          const count = await fetchUserGameCount(player.username, player.token)
+          return { label: player.label, username: player.username, count }
+        } catch (err) {
+          return {
+            label: player.label,
+            username: player.username,
+            count: null,
+            error: err instanceof Error ? err.message : 'Failed to fetch',
+          }
+        }
+      }),
+    )
+
+    setCounts(results)
+    setLoading(false)
+  }
 
   return (
     <div className="app">
@@ -18,56 +59,43 @@ function App() {
 
       <main className="main">
         <section className="card">
-          <h2>Get started</h2>
-          <p className="hint">
-            Enter a Lichess username to begin. We&apos;ll pull game data and
-            build your dashboard here.
-          </p>
+          <h2>Players</h2>
 
-          <form
-            className="username-form"
-            onSubmit={(e) => {
-              e.preventDefault()
-            }}
-          >
-            <label htmlFor="username">Lichess username</label>
-            <div className="input-row">
-              <input
-                id="username"
-                type="text"
-                placeholder="e.g. DrNykterstein"
-                value={lichessUsername}
-                onChange={(e) => setLichessUsername(e.target.value)}
-                autoComplete="off"
-              />
-              <button type="submit" disabled={!lichessUsername.trim()}>
-                Analyze
-              </button>
-            </div>
-          </form>
-
-          <div className="status">
-            <span className="status-dot" />
-            <span>
-              chess.js ready — starting position:{' '}
-              <code>{chess.fen()}</code>
-            </span>
+          <div className="player-grid">
+            {players.map((player) => {
+              const result = counts.find((c) => c.username === player.username)
+              return (
+                <div key={player.id} className="player-card">
+                  <span className="player-label">{player.label}</span>
+                  <span className="player-username">
+                    {player.username || 'not configured'}
+                  </span>
+                  {result?.error && (
+                    <span className="error">{result.error}</span>
+                  )}
+                  {result?.count !== null && result?.count !== undefined && (
+                    <span className="player-count">
+                      {result.count.toLocaleString()} games
+                    </span>
+                  )}
+                </div>
+              )
+            })}
           </div>
-        </section>
 
-        <section className="card placeholder">
-          <h2>Coming soon</h2>
-          <ul>
-            <li>Head-to-head records</li>
-            <li>Opening repertoire analysis</li>
-            <li>Rating trends over time</li>
-            <li>Batch fetch for both players</li>
-          </ul>
+          <button
+            type="button"
+            className="fetch-btn"
+            onClick={handleFetch}
+            disabled={loading}
+          >
+            {loading ? 'Fetching…' : 'Fetch games'}
+          </button>
         </section>
       </main>
 
       <footer className="footer">
-        <span>Powered by chess.js &amp; Lichess API</span>
+        <span>Powered by Lichess API</span>
       </footer>
     </div>
   )
