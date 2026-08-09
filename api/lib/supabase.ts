@@ -43,6 +43,7 @@ export async function getSyncMeta(username: string): Promise<CacheMeta | null> {
     username: data.username,
     gameCount: data.game_count,
     latestCreatedAt: data.latest_created_at,
+    fullSyncUntil: data.full_sync_until ?? null,
     lastSyncedAt: new Date(data.last_synced_at).getTime(),
   }
 }
@@ -108,16 +109,24 @@ export async function upsertGames(
 export async function saveSyncMeta(
   username: string,
   games: LichessGame[],
+  options: { fullSyncUntil?: number | null } = {},
 ): Promise<CacheMeta> {
   const supabase = getSupabase()
   const normalized = normalizeUsername(username)
   const latestCreatedAt =
     games.length > 0 ? Math.max(...games.map((game) => game.createdAt)) : null
 
+  const existing = await getSyncMeta(username)
+  const fullSyncUntil =
+    options.fullSyncUntil !== undefined
+      ? options.fullSyncUntil
+      : (existing?.fullSyncUntil ?? null)
+
   const row = {
     username: normalized,
     game_count: games.length,
     latest_created_at: latestCreatedAt,
+    full_sync_until: fullSyncUntil,
     last_synced_at: new Date().toISOString(),
   }
 
@@ -128,6 +137,7 @@ export async function saveSyncMeta(
     username: normalized,
     gameCount: games.length,
     latestCreatedAt,
+    fullSyncUntil,
     lastSyncedAt: Date.now(),
   }
 }

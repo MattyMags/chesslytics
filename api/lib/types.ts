@@ -20,6 +20,7 @@ export interface CacheMeta {
   username: string
   gameCount: number
   latestCreatedAt: number | null
+  fullSyncUntil: number | null
   lastSyncedAt: number
 }
 
@@ -31,6 +32,7 @@ export interface SyncResult {
   newCount: number
   fullRefresh: boolean
   skipped: boolean
+  needsMore: boolean
 }
 
 export interface PlayerConfig {

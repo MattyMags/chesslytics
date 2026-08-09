@@ -4,6 +4,7 @@ export interface CacheMeta {
   username: string
   gameCount: number
   latestCreatedAt: number | null
+  fullSyncUntil: number | null
   lastSyncedAt: number
 }
 
@@ -15,6 +16,7 @@ export interface SyncResult {
   newCount: number
   fullRefresh: boolean
   skipped: boolean
+  needsMore: boolean
 }
 
 export interface PlayerSyncResponse {
@@ -35,9 +37,7 @@ async function parseApiResponse<T>(response: Response): Promise<T> {
 
   if (!text.trim()) {
     throw new Error(
-      response.ok
-        ? 'API returned an empty response'
-        : `API error (${response.status}): empty response — is the server running?`,
+      `API error (${response.status}): empty response. Check Vercel env vars and function logs.`,
     )
   }
 
@@ -45,9 +45,8 @@ async function parseApiResponse<T>(response: Response): Promise<T> {
   try {
     payload = JSON.parse(text) as T & { error?: string }
   } catch {
-    throw new Error(
-      `API returned invalid JSON (${response.status}). You may be hitting the frontend instead of /api routes.`,
-    )
+    const preview = text.replace(/\s+/g, ' ').slice(0, 160)
+    throw new Error(`API error (${response.status}): ${preview}`)
   }
 
   if (!response.ok) {
@@ -72,4 +71,23 @@ export async function syncPlayersFromApi(options: {
     body: JSON.stringify(options),
   })
   return parseApiResponse<ApiPlayersResponse>(response)
+}
+
+export async function syncUntilComplete(options: {
+  force?: boolean
+  skipIfFresh?: boolean
+  onProgress?: (response: ApiPlayersResponse) => void
+} = {}): Promise<ApiPlayersResponse> {
+  let force = options.force ?? false
+  let skipIfFresh = options.skipIfFresh ?? !force
+  let response: ApiPlayersResponse | null = null
+
+  do {
+    response = await syncPlayersFromApi({ force, skipIfFresh })
+    options.onProgress?.(response)
+    force = false
+    skipIfFresh = false
+  } while (response.players.some((player) => player.sync?.needsMore))
+
+  return response!
 }
