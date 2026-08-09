@@ -360,7 +360,6 @@ async function syncPlayerGames(
 
     const games = await getGamesFromDb(username)
 
-    // Stop if the batch cursor is stuck (same timestamp) or nothing new was saved
     if (needsMore && games.length === gameCountBefore) {
       needsMore = false
       fullSyncUntil = null

@@ -73,6 +73,48 @@ export interface AccuracyStats {
   avgBlunders: number
 }
 
+export interface QueenBlunderEvent {
+  gameId: string
+  date: number
+  opponent: string
+  moveNumber: number
+  moveSan: string
+  playerColor: 'white' | 'black'
+  kind: 'hung' | 'captured'
+  result: 'win' | 'loss' | 'draw'
+  opening?: string
+  speed: string
+  lichessBlunders?: number
+}
+
+export interface BlunderBreakdown {
+  label: string
+  count: number
+}
+
+export interface BlunderStats {
+  gamesAnalyzed: number
+  totalInaccuracies: number
+  totalMistakes: number
+  totalBlunders: number
+  avgInaccuracies: number
+  avgMistakes: number
+  avgBlunders: number
+  gamesWithPgn: number
+  totalQueenBlunders: number
+  queenBlundersPerGame: number
+  gamesWithQueenBlunder: number
+  queenBlunderRate: number
+  recordAfterQueenBlunder: {
+    wins: number
+    losses: number
+    draws: number
+  }
+  queenBlunders: QueenBlunderEvent[]
+  queenBlundersByOpening: BlunderBreakdown[]
+  queenBlundersBySpeed: BlunderBreakdown[]
+}
+
 export interface PgnStats {
   parsed: number
   failed: number
@@ -115,6 +157,7 @@ export interface PlayerStats {
   opponents: OpponentStat[]
   rating: RatingInsights
   accuracy: AccuracyStats
+  blunders: BlunderStats
   pgn: PgnStats
   activity: ActivityStats
 }

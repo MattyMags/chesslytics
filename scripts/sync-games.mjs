@@ -82,7 +82,7 @@ function mergeGames(existing, incoming) {
 async function fetchGames(username, token, since) {
   const params = new URLSearchParams({
     pgnInJson: 'true',
-    moves: 'false',
+    moves: 'true',
     tags: 'true',
     opening: 'true',
     clocks: 'false',

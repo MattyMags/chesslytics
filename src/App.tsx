@@ -41,10 +41,22 @@ function toPlayerData(entry: PlayerSyncResponse): PlayerData {
   }
 }
 
+function toSyncStatus(entry: PlayerSyncResponse): PlayerData {
+  return {
+    label: entry.label,
+    username: entry.username,
+    games: [],
+    stats: null,
+    sync: entry.sync,
+    error: entry.error,
+  }
+}
+
 function App() {
   const players = useMemo(() => getPlayers(), [])
+  const [loading, setLoading] = useState(true)
   const [syncing, setSyncing] = useState(false)
-  const [initialLoading, setInitialLoading] = useState(true)
+  const [statusMessage, setStatusMessage] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<Tab>('player1')
   const [playerData, setPlayerData] = useState<PlayerData[]>([])
   const [headToHead, setHeadToHead] = useState<HeadToHeadStats | null>(null)
@@ -73,55 +85,75 @@ function App() {
     }
   }
 
-  async function syncAll(force = false, skipIfFresh = !force) {
-    setSyncing(true)
-
-    if (force) {
-      setPlayerData([])
-      setHeadToHead(null)
-      setInitialLoading(true)
-    } else if (!hasData) {
-      try {
-        const cached = await loadGamesFromApi()
-        if (cached.players.some((p) => p.games.length > 0)) {
-          applyResults(cached.players.map(toPlayerData))
-          setInitialLoading(false)
-        }
-      } catch {
-        // DB may be empty on first run — sync will populate it
+  function mergeSyncStatus(entries: PlayerSyncResponse[]) {
+    setPlayerData((prev) => {
+      const byUsername = new Map(prev.map((p) => [p.username, p]))
+      for (const entry of entries.map(toSyncStatus)) {
+        const existing = byUsername.get(entry.username)
+        byUsername.set(entry.username, {
+          ...entry,
+          games: existing?.games ?? [],
+          stats: existing?.stats ?? null,
+        })
       }
+      return [...byUsername.values()]
+    })
+  }
+
+  async function loadFromDb() {
+    try {
+      const cached = await loadGamesFromApi()
+      applyResults(cached.players.map(toPlayerData))
+    } catch (err) {
+      setPlayerData(
+        players.map((player) => ({
+          label: player.label,
+          username: player.username,
+          games: [],
+          stats: null,
+          error: err instanceof Error ? err.message : 'Failed to load games',
+        })),
+      )
+      setHeadToHead(null)
     }
+  }
+
+  async function syncGames() {
+    setSyncing(true)
+    setStatusMessage('Syncing with Lichess…')
 
     try {
       const response = await syncUntilComplete({
-        force,
-        skipIfFresh,
-        onProgress: (progress) => {
-          applyResults(progress.players.map(toPlayerData))
-          setInitialLoading(false)
-        },
+        skipIfFresh: false,
+        onProgress: (progress) => mergeSyncStatus(progress.players),
       })
-      applyResults(response.players.map(toPlayerData))
+      mergeSyncStatus(response.players)
+
+      setStatusMessage('Refreshing stats…')
+      await loadFromDb()
     } catch (err) {
-      if (!hasData) {
-        applyResults(
-          players.map((player) => ({
-            label: player.label,
-            username: player.username,
-            games: [],
-            stats: null,
-            error: err instanceof Error ? err.message : 'Sync failed',
-          })),
-        )
-      }
+      setPlayerData((prev) =>
+        prev.length > 0
+          ? prev.map((p) => ({
+              ...p,
+              error: err instanceof Error ? err.message : 'Sync failed',
+            }))
+          : players.map((player) => ({
+              label: player.label,
+              username: player.username,
+              games: [],
+              stats: null,
+              error: err instanceof Error ? err.message : 'Sync failed',
+            })),
+      )
     }
 
-    setInitialLoading(false)
+    setStatusMessage(null)
     setSyncing(false)
   }
 
   useEffect(() => {
-    syncAll(false, true)
+    loadFromDb().finally(() => setLoading(false))
   }, [])
 
   const tabs: { id: Tab; label: string; disabled?: boolean }[] = [
@@ -153,26 +185,16 @@ function App() {
             ))}
           </div>
           <div className="toolbar__actions">
-            {syncing && (
-              <span className="sync-indicator">
-                Syncing with Lichess… (batched for Vercel)
-              </span>
+            {statusMessage && (
+              <span className="sync-indicator">{statusMessage}</span>
             )}
             <button
               type="button"
-              className="fetch-btn fetch-btn--secondary"
-              onClick={() => syncAll(false, false)}
-              disabled={syncing}
+              className="fetch-btn"
+              onClick={syncGames}
+              disabled={syncing || loading}
             >
-              Check for new games
-            </button>
-            <button
-              type="button"
-              className="fetch-btn fetch-btn--secondary"
-              onClick={() => syncAll(true)}
-              disabled={syncing}
-            >
-              Full refresh
+              Sync games
             </button>
           </div>
           {playerData.some((p) => p.sync) && (
@@ -182,20 +204,16 @@ function App() {
                 .map((p) => (
                   <p key={p.username}>
                     <strong>{p.label}:</strong>{' '}
-                    {p.sync!.games.length.toLocaleString()} games in database
+                    {p.sync!.meta.gameCount.toLocaleString()} games in database
                     {' · '}
                     last synced {formatDate(p.sync!.meta.lastSyncedAt)}
                     {p.sync!.skipped
                       ? ' (no Lichess call — recently synced)'
                       : p.sync!.needsMore
                         ? ' (syncing more batches…)'
-                        : p.sync!.fullRefresh
-                        ? ' (full re-download)'
-                        : p.sync!.cachedCount === 0
-                          ? ' (first download)'
-                          : p.sync!.newCount > 0
-                            ? ` (+${p.sync!.newCount} new from Lichess)`
-                            : ' (checked — no new games)'}
+                        : p.sync!.newCount > 0
+                          ? ` (+${p.sync!.newCount} new from Lichess)`
+                          : ' (up to date)'}
                   </p>
                 ))}
             </div>
@@ -253,23 +271,17 @@ function App() {
           />
         )}
 
-        {initialLoading && !hasData && (
+        {loading && !hasData && (
           <section className="empty-state card">
-            <h2>Loading your games…</h2>
-            <p>
-              First sync downloads your Lichess history into Supabase. This may
-              take a minute.
-            </p>
+            <h2>Loading stats from database…</h2>
+            <p>Pulling your saved games from Supabase.</p>
           </section>
         )}
 
-        {!initialLoading && !hasData && !syncing && (
+        {!loading && !hasData && !syncing && (
           <section className="empty-state card">
-            <h2>No games found</h2>
-            <p>
-              Set up Supabase (see README), add server env vars, then reload or
-              use Full refresh.
-            </p>
+            <h2>No games in database yet</h2>
+            <p>Click Sync games to download from Lichess.</p>
           </section>
         )}
       </main>
