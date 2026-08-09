@@ -46,6 +46,7 @@ export async function getGamesHandler(): Promise<ApiPlayersResponse> {
                 newCount: 0,
                 fullRefresh: false,
                 skipped: true,
+                needsMore: meta.fullSyncUntil != null,
               }
             : undefined,
         }

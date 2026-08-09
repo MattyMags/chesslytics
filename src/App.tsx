@@ -5,7 +5,7 @@ import { getPlayers } from './config/players'
 import { formatDate } from './lib/format'
 import {
   loadGamesFromApi,
-  syncPlayersFromApi,
+  syncUntilComplete,
   type PlayerSyncResponse,
 } from './lib/lichess'
 import {
@@ -93,7 +93,14 @@ function App() {
     }
 
     try {
-      const response = await syncPlayersFromApi({ force, skipIfFresh })
+      const response = await syncUntilComplete({
+        force,
+        skipIfFresh,
+        onProgress: (progress) => {
+          applyResults(progress.players.map(toPlayerData))
+          setInitialLoading(false)
+        },
+      })
       applyResults(response.players.map(toPlayerData))
     } catch (err) {
       if (!hasData) {
@@ -147,7 +154,9 @@ function App() {
           </div>
           <div className="toolbar__actions">
             {syncing && (
-              <span className="sync-indicator">Syncing with Lichess…</span>
+              <span className="sync-indicator">
+                Syncing with Lichess… (batched for Vercel)
+              </span>
             )}
             <button
               type="button"
@@ -178,7 +187,9 @@ function App() {
                     last synced {formatDate(p.sync!.meta.lastSyncedAt)}
                     {p.sync!.skipped
                       ? ' (no Lichess call — recently synced)'
-                      : p.sync!.fullRefresh
+                      : p.sync!.needsMore
+                        ? ' (syncing more batches…)'
+                        : p.sync!.fullRefresh
                         ? ' (full re-download)'
                         : p.sync!.cachedCount === 0
                           ? ' (first download)'

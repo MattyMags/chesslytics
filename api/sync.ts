@@ -1,9 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
-import { assertServerEnv, getGamesHandler, syncHandler } from './lib/handlers'
-
-export const config = {
-  maxDuration: 300,
-}
+import { assertServerEnv, syncHandler } from './lib/handlers'
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {

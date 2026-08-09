@@ -5,24 +5,32 @@ import {
   saveSyncMeta,
   upsertGames,
 } from './supabase'
-import { fetchAllGamesFromLichess, fetchUserGamesFromLichess, mergeGames } from './lichess'
+import { fetchUserGamesFromLichess } from './lichess'
 import type { PlayerConfig, SyncResult } from './types'
 
 export const CACHE_TTL_MS = 60 * 60 * 1000 // 1 hour
+const LICHESS_BATCH_SIZE = 100
 
 export async function syncPlayerGames(
   player: PlayerConfig,
   options: { force?: boolean; skipIfFresh?: boolean } = {},
 ): Promise<SyncResult> {
   const username = player.username
-  const cached = options.force ? [] : await getGamesFromDb(username)
-  const meta = await getSyncMeta(username)
+  let meta = await getSyncMeta(username)
+  let cached = await getGamesFromDb(username)
+
+  if (options.force) {
+    await deleteGamesForUser(username)
+    meta = await saveSyncMeta(username, [], { fullSyncUntil: null })
+    cached = []
+  }
 
   if (
     options.skipIfFresh &&
     !options.force &&
     meta &&
     cached.length > 0 &&
+    meta.fullSyncUntil == null &&
     Date.now() - meta.lastSyncedAt < CACHE_TTL_MS
   ) {
     return {
@@ -33,37 +41,70 @@ export async function syncPlayerGames(
       newCount: 0,
       fullRefresh: false,
       skipped: true,
+      needsMore: false,
     }
   }
 
-  if (options.force) {
-    await deleteGamesForUser(username)
+  const resumingFullSync = meta?.fullSyncUntil != null
+  const hasHistory = meta?.latestCreatedAt != null && meta.fullSyncUntil == null
+
+  let fetchedCount = 0
+  let newCount = 0
+
+  if (hasHistory && !options.force && !resumingFullSync) {
+    const fetched = await fetchUserGamesFromLichess(username, player.token, {
+      since: meta!.latestCreatedAt!,
+    })
+    fetchedCount = fetched.length
+    newCount = fetched.length
+    if (fetched.length > 0) {
+      await upsertGames(username, fetched)
+    }
+  } else {
+    const until = meta?.fullSyncUntil ?? undefined
+    const batch = await fetchUserGamesFromLichess(username, player.token, {
+      max: LICHESS_BATCH_SIZE,
+      until,
+    })
+
+    fetchedCount = batch.length
+    newCount = batch.length
+
+    if (batch.length > 0) {
+      await upsertGames(username, batch)
+    }
+
+    const needsMore = batch.length === LICHESS_BATCH_SIZE
+    const fullSyncUntil = needsMore
+      ? Math.min(...batch.map((game) => game.createdAt)) - 1
+      : null
+
+    const games = await getGamesFromDb(username)
+    const updatedMeta = await saveSyncMeta(username, games, { fullSyncUntil })
+
+    return {
+      games,
+      meta: updatedMeta,
+      cachedCount: cached.length,
+      fetchedCount,
+      newCount,
+      fullRefresh: options.force ?? false,
+      skipped: false,
+      needsMore,
+    }
   }
 
-  const since =
-    !options.force && meta?.latestCreatedAt != null
-      ? meta.latestCreatedAt
-      : undefined
-
-  const fetched = since
-    ? await fetchUserGamesFromLichess(username, player.token, { since })
-    : await fetchAllGamesFromLichess(username, player.token)
-
-  if (fetched.length > 0) {
-    await upsertGames(username, fetched)
-  }
-
-  const { merged, newCount } = mergeGames(cached, fetched)
-  const games = options.force ? await getGamesFromDb(username) : merged
-  const updatedMeta = await saveSyncMeta(username, games)
+  const games = await getGamesFromDb(username)
+  const updatedMeta = await saveSyncMeta(username, games, { fullSyncUntil: null })
 
   return {
     games,
     meta: updatedMeta,
     cachedCount: cached.length,
-    fetchedCount: fetched.length,
-    newCount: options.force ? games.length : newCount,
+    fetchedCount,
+    newCount,
     fullRefresh: options.force ?? false,
     skipped: false,
+    needsMore: false,
   }
 }

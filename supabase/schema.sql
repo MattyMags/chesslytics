@@ -19,11 +19,15 @@ create table if not exists sync_meta (
   username text primary key,
   game_count integer not null default 0,
   latest_created_at bigint,
+  full_sync_until bigint,
   last_synced_at timestamptz not null default now()
 );
-npm run dev:stack
+
 alter table games enable row level security;
 alter table sync_meta enable row level security;
+
+-- If you already created sync_meta without full_sync_until, run:
+-- alter table sync_meta add column if not exists full_sync_until bigint;
 
 -- Intentionally no policies for anon or authenticated roles.
 -- All access goes through serverless functions using the service role key.
