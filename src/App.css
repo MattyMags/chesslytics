@@ -1,0 +1,282 @@
+.app {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 2rem 1.5rem;
+}
+
+.header {
+  text-align: center;
+  margin-bottom: 2.5rem;
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+}
+
+.logo-icon {
+  font-size: 2.5rem;
+  line-height: 1;
+}
+
+.logo h1 {
+  margin: 0;
+  font-size: 2rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  background: linear-gradient(135deg, #e94560, #ff6b8a);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.tagline {
+  margin: 0.5rem 0 0;
+  color: #8888a0;
+  font-size: 1rem;
+}
+
+.main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.card {
+  background: #1a1a2e;
+  border: 1px solid #2a2a45;
+  border-radius: 12px;
+  padding: 1.5rem;
+}
+
+.card h2 {
+  margin: 0 0 0.75rem;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #c8c8dc;
+}
+
+.hint {
+  margin: 0 0 1.25rem;
+  color: #8888a0;
+  font-size: 0.9rem;
+}
+
+.username-form label {
+  display: block;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: #a0a0b8;
+  margin-bottom: 0.5rem;
+}
+
+.input-row {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.input-row input {
+  flex: 1;
+  padding: 0.65rem 0.85rem;
+  border: 1px solid #3a3a55;
+  border-radius: 8px;
+  background: #12121f;
+  color: #e8e8f0;
+  font-size: 0.95rem;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.input-row input:focus {
+  border-color: #e94560;
+}
+
+.input-row input::placeholder {
+  color: #555570;
+}
+
+.input-row button {
+  padding: 0.65rem 1.25rem;
+  border: none;
+  border-radius: 8px;
+  background: #e94560;
+  color: #fff;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, opacity 0.15s;
+  white-space: nowrap;
+}
+
+.input-row button:hover:not(:disabled) {
+  background: #d63851;
+}
+
+.input-row button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.controls {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 1.25rem;
+}
+
+.controls label {
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: #a0a0b8;
+}
+
+.controls select {
+  padding: 0.65rem 0.85rem;
+  border: 1px solid #3a3a55;
+  border-radius: 8px;
+  background: #12121f;
+  color: #e8e8f0;
+  font-size: 0.95rem;
+  outline: none;
+}
+
+.controls select:focus {
+  border-color: #e94560;
+}
+
+.controls button {
+  padding: 0.75rem 1.25rem;
+  border: none;
+  border-radius: 8px;
+  background: #e94560;
+  color: #fff;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, opacity 0.15s;
+}
+
+.controls button:hover:not(:disabled) {
+  background: #d63851;
+}
+
+.controls button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.player-grid {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.player-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid #2a2a45;
+  border-radius: 8px;
+  background: #12121f;
+}
+
+.player-label {
+  font-weight: 600;
+  color: #c8c8dc;
+}
+
+.player-username {
+  color: #e94560;
+  font-size: 0.95rem;
+}
+
+.player-meta {
+  font-size: 0.8rem;
+  color: #666680;
+}
+
+.warning,
+.error {
+  margin: 1rem 0 0;
+  font-size: 0.85rem;
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+}
+
+.warning {
+  color: #fbbf24;
+  background: rgba(251, 191, 36, 0.08);
+  border: 1px solid rgba(251, 191, 36, 0.2);
+}
+
+.error {
+  color: #f87171;
+  background: rgba(248, 113, 113, 0.08);
+  border: 1px solid rgba(248, 113, 113, 0.2);
+}
+
+.preview {
+  margin-top: 1.25rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid #2a2a45;
+}
+
+.preview h3 {
+  margin: 0 0 0.75rem;
+  font-size: 0.95rem;
+  color: #c8c8dc;
+}
+
+.preview ul {
+  margin: 0;
+  padding-left: 1.25rem;
+  color: #8888a0;
+  font-size: 0.9rem;
+}
+
+.preview li {
+  margin-bottom: 0.35rem;
+}
+
+.status {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 1.25rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid #2a2a45;
+  font-size: 0.8rem;
+  color: #666680;
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #4ade80;
+  flex-shrink: 0;
+}
+
+.placeholder ul {
+  margin: 0;
+  padding-left: 1.25rem;
+  color: #8888a0;
+  font-size: 0.9rem;
+}
+
+.placeholder li {
+  margin-bottom: 0.35rem;
+}
+
+.footer {
+  margin-top: 2.5rem;
+  text-align: center;
+  font-size: 0.8rem;
+  color: #555570;
+}
