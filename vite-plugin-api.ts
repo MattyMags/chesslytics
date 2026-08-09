@@ -1,7 +1,11 @@
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { Plugin } from 'vite'
 import { loadEnv } from 'vite'
-import { assertServerEnv, getGamesHandler, syncHandler } from './api/lib/handlers'
+import {
+  assertServerEnv,
+  getGamesHandler,
+  syncHandler,
+} from './api/shared'
 
 function readBody(req: IncomingMessage): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -34,6 +38,15 @@ export function apiDevPlugin(): Plugin {
         if (!url?.startsWith('/api/')) return next()
 
         try {
+          if (url === '/api/health') {
+            sendJson(res, 200, {
+              ok: true,
+              hasSupabaseUrl: Boolean(process.env.SUPABASE_URL),
+              hasSupabaseKey: Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY),
+            })
+            return
+          }
+
           if (url === '/api/games' && req.method === 'GET') {
             assertServerEnv()
             const result = await getGamesHandler()
